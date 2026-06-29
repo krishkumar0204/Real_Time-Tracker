@@ -1,0 +1,5 @@
+@import "tailwindcss";
+
+.tracker-marker-red {
+  filter: hue-rotate(150deg) saturate(2.2) brightness(0.95);
+}
