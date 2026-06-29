@@ -9,7 +9,7 @@ const app = express();
 const httpServer = createServer(app);
 const io = new Server(httpServer, {
   cors: {
-    origin: config.FRONTED_URL,
+    origin: config.CORS_ORIGINS,
     methods: ["GET", "POST"],
   },
 });
@@ -21,5 +21,9 @@ initializeSocket(io);
 app.use(morgan("dev"));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
+app.get("/health", (req, res) => {
+  res.status(200).json({ status: "ok" });
+});
 
 export default httpServer;
