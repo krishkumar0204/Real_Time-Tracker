@@ -32,6 +32,7 @@ const RecenterMap = ({ position }) => {
 const Map = () => {
   const [positions, setPositions] = useState({});
   const [mySocketId, setMySocketId] = useState(null);
+  console.log("Positions", positions);
 
   useEffect(() => {
     const handleConnect = () => setMySocketId(socket.id);
@@ -96,22 +97,24 @@ const Map = () => {
   const myPosition = mySocketId ? positions[mySocketId] : null;
 
   return (
-    <MapContainer
-      center={[20.5937, 78.9629]}
-      zoom={5}
-      style={{ height: "100vh", width: "100%" }}
-    >
-      <TileLayer
-        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-        url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-      />
-      <RecenterMap position={myPosition} />
-      {Object.entries(positions).map(([id, position]) => (
-        <Marker key={id} icon={redMarkerIcon} position={position}>
-          <Popup>{id === mySocketId ? "You are here" : `User ${id}`}</Popup>
-        </Marker>
-      ))}
-    </MapContainer>
+    <main className="tracker-shell" aria-label="Realtime location tracker">
+      <MapContainer
+        center={[20.5937, 78.9629]}
+        zoom={5}
+        className="tracker-map"
+      >
+        <TileLayer
+          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+        />
+        <RecenterMap position={myPosition} />
+        {Object.entries(positions).map(([id, position]) => (
+          <Marker key={id} icon={redMarkerIcon} position={position}>
+            <Popup>{id === mySocketId ? "You are here" : `User ${id}`}</Popup>
+          </Marker>
+        ))}
+      </MapContainer>
+    </main>
   );
 };
 
