@@ -71,6 +71,70 @@ body {
   filter: hue-rotate(150deg) saturate(2.2) brightness(0.95);
 }
 
+.name-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: grid;
+  place-items: center;
+  padding: 1rem;
+  background: rgb(15 23 42 / 0.5);
+}
+
+.name-card {
+  width: min(100%, 24rem);
+  padding: 1rem;
+  border: 1px solid rgb(226 232 240);
+  border-radius: 0.5rem;
+  background: #ffffff;
+  box-shadow: 0 1.25rem 3rem rgb(15 23 42 / 0.2);
+}
+
+.name-card label {
+  display: block;
+  margin-bottom: 0.75rem;
+  color: #0f172a;
+  font-size: 0.95rem;
+  font-weight: 700;
+}
+
+.name-row {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.name-row input {
+  min-width: 0;
+  flex: 1;
+  height: 2.75rem;
+  border: 1px solid #cbd5e1;
+  border-radius: 0.375rem;
+  padding: 0 0.75rem;
+  color: #0f172a;
+  font: inherit;
+}
+
+.name-row button {
+  height: 2.75rem;
+  border: 0;
+  border-radius: 0.375rem;
+  padding: 0 1rem;
+  background: #0f766e;
+  color: #ffffff;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.leaflet-tooltip {
+  border: 1px solid rgb(15 23 42 / 0.12);
+  border-radius: 999px;
+  padding: 0.25rem 0.5rem;
+  color: #0f172a;
+  font-weight: 700;
+  box-shadow: 0 0.5rem 1.5rem rgb(15 23 42 / 0.16);
+}
+
 @media (max-width: 480px) {
   .leaflet-top,
   .leaflet-left {
@@ -90,5 +154,9 @@ body {
 
   .leaflet-popup-content {
     margin: 0.75rem 1rem;
+  }
+
+  .name-row {
+    flex-direction: column;
   }
 }

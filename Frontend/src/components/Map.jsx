@@ -1,4 +1,11 @@
-import { MapContainer, TileLayer, Marker, Popup, useMap } from "react-leaflet";
+import {
+  MapContainer,
+  TileLayer,
+  Marker,
+  Popup,
+  Tooltip,
+  useMap,
+} from "react-leaflet";
 import { useState, useEffect } from "react";
 import L from "leaflet";
 import markerIcon2x from "leaflet/dist/images/marker-icon-2x.png";
@@ -29,17 +36,29 @@ const RecenterMap = ({ position }) => {
   return null;
 };
 
+const getSavedName = () => {
+  const savedName = window.localStorage.getItem("tracker-display-name");
+  return savedName?.trim() || "";
+};
+
 const Map = () => {
   const [positions, setPositions] = useState({});
   const [mySocketId, setMySocketId] = useState(null);
+  const [displayName, setDisplayName] = useState(getSavedName);
+  const [nameInput, setNameInput] = useState(getSavedName);
 
   useEffect(() => {
-    const handleConnect = () => setMySocketId(socket.id);
+    const handleConnect = () => {
+      setMySocketId(socket.id);
+    };
 
     const handleReceiveLocation = (data) => {
       setPositions((currentPositions) => ({
         ...currentPositions,
-        [data.id]: [data.latitude, data.longitude],
+        [data.id]: {
+          name: data.name,
+          position: [data.latitude, data.longitude],
+        },
       }));
     };
 
@@ -67,6 +86,10 @@ const Map = () => {
   }, []);
 
   useEffect(() => {
+    if (!displayName) {
+      return;
+    }
+
     if (!navigator.geolocation) {
       console.error("Geolocation is not supported by this browser.");
       return;
@@ -76,7 +99,7 @@ const Map = () => {
       (position) => {
         const { latitude, longitude } = position.coords;
 
-        socket.emit("send-location", { latitude, longitude });
+        socket.emit("send-location", { latitude, longitude, name: displayName });
       },
       (error) => {
         console.error("Location tracking failed:", error.message);
@@ -91,12 +114,45 @@ const Map = () => {
     return () => {
       navigator.geolocation.clearWatch(watchId);
     };
-  }, []);
+  }, [displayName]);
 
-  const myPosition = mySocketId ? positions[mySocketId] : null;
+  const myPosition = mySocketId ? positions[mySocketId]?.position : null;
+
+  const handleNameSubmit = (event) => {
+    event.preventDefault();
+
+    const nextName = nameInput.trim().replace(/\s+/g, " ").slice(0, 40);
+
+    if (!nextName) {
+      return;
+    }
+
+    window.localStorage.setItem("tracker-display-name", nextName);
+    setDisplayName(nextName);
+  };
 
   return (
     <main className="tracker-shell" aria-label="Realtime location tracker">
+      {!displayName && (
+        <div className="name-overlay" role="dialog" aria-modal="true">
+          <form className="name-card" onSubmit={handleNameSubmit}>
+            <label htmlFor="display-name">Enter your name</label>
+            <div className="name-row">
+              <input
+                id="display-name"
+                type="text"
+                value={nameInput}
+                onChange={(event) => setNameInput(event.target.value)}
+                maxLength={40}
+                autoComplete="name"
+                autoFocus
+                placeholder="Your name"
+              />
+              <button type="submit">Start</button>
+            </div>
+          </form>
+        </div>
+      )}
       <MapContainer
         center={[20.5937, 78.9629]}
         zoom={5}
@@ -107,9 +163,14 @@ const Map = () => {
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
         />
         <RecenterMap position={myPosition} />
-        {Object.entries(positions).map(([id, position]) => (
-          <Marker key={id} icon={redMarkerIcon} position={position}>
-            <Popup>{id === mySocketId ? "You are here" : `User ${id}`}</Popup>
+        {Object.entries(positions).map(([id, user]) => (
+          <Marker key={id} icon={redMarkerIcon} position={user.position}>
+            <Tooltip direction="top" offset={[0, -36]} permanent>
+              {user.name}
+            </Tooltip>
+            <Popup>
+              {id === mySocketId ? `${user.name} (You)` : user.name}
+            </Popup>
           </Marker>
         ))}
       </MapContainer>

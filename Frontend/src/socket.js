@@ -1,10 +1,28 @@
 import { io } from "socket.io-client";
 
-const apiUrl = (import.meta.env.VITE_API_URL || "http://localhost:3000").replace(
-  /\/$/,
-  "",
+const apiUrl = (
+  import.meta.env.VITE_API_URL ||
+  (import.meta.env.DEV ? "http://localhost:3000" : "")
+).replace(/\/$/, "");
+
+if (!apiUrl) {
+  throw new Error("VITE_API_URL is required for production builds.");
+}
+
+const isLocalApiUrl = /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/i.test(
+  apiUrl,
 );
 
+if (import.meta.env.PROD && isLocalApiUrl) {
+  throw new Error(
+    "VITE_API_URL must point to the deployed backend in production, not localhost.",
+  );
+}
+
 const socket = io(apiUrl);
+
+socket.on("connect_error", (error) => {
+  console.error(`Socket connection failed for ${apiUrl}:`, error.message);
+});
 
 export default socket;
