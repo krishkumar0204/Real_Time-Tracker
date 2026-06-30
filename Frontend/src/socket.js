@@ -1,9 +1,23 @@
 import { io } from "socket.io-client";
 
-const apiUrl = (
+const normalizeApiUrl = (value) => {
+  const trimmedValue = value.trim().replace(/\/$/, "");
+
+  if (!trimmedValue || /^https?:\/\//i.test(trimmedValue)) {
+    return trimmedValue;
+  }
+
+  if (/^(localhost|127\.0\.0\.1)(:\d+)?$/i.test(trimmedValue)) {
+    return `http://${trimmedValue}`;
+  }
+
+  return `https://${trimmedValue}`;
+};
+
+const apiUrl = normalizeApiUrl(
   import.meta.env.VITE_API_URL ||
-  (import.meta.env.DEV ? "http://localhost:3000" : "")
-).replace(/\/$/, "");
+    (import.meta.env.DEV ? "http://localhost:3000" : ""),
+);
 
 if (!apiUrl) {
   throw new Error("VITE_API_URL is required for production builds.");

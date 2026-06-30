@@ -6,7 +6,7 @@ import {
   Tooltip,
   useMap,
 } from "react-leaflet";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import L from "leaflet";
 import markerIcon2x from "leaflet/dist/images/marker-icon-2x.png";
 import markerIcon from "leaflet/dist/images/marker-icon.png";
@@ -46,10 +46,37 @@ const Map = () => {
   const [mySocketId, setMySocketId] = useState(null);
   const [displayName, setDisplayName] = useState(getSavedName);
   const [nameInput, setNameInput] = useState(getSavedName);
+  const lastLocationRef = useRef(null);
 
   useEffect(() => {
     const handleConnect = () => {
       setMySocketId(socket.id);
+    };
+
+    const handleActiveUsers = (users) => {
+      if (!Array.isArray(users)) {
+        return;
+      }
+
+      setPositions(
+        users.reduce((nextPositions, user) => {
+          const latitude = Number(user.latitude);
+          const longitude = Number(user.longitude);
+
+          if (
+            user.id &&
+            Number.isFinite(latitude) &&
+            Number.isFinite(longitude)
+          ) {
+            nextPositions[user.id] = {
+              name: user.name,
+              position: [latitude, longitude],
+            };
+          }
+
+          return nextPositions;
+        }, {}),
+      );
     };
 
     const handleReceiveLocation = (data) => {
@@ -71,6 +98,7 @@ const Map = () => {
     };
 
     socket.on("connect", handleConnect);
+    socket.on("active-users", handleActiveUsers);
     socket.on("receive-location", handleReceiveLocation);
     socket.on("user-disconnected", handleUserDisconnected);
 
@@ -80,6 +108,7 @@ const Map = () => {
 
     return () => {
       socket.off("connect", handleConnect);
+      socket.off("active-users", handleActiveUsers);
       socket.off("receive-location", handleReceiveLocation);
       socket.off("user-disconnected", handleUserDisconnected);
     };
@@ -99,6 +128,7 @@ const Map = () => {
       (position) => {
         const { latitude, longitude } = position.coords;
 
+        lastLocationRef.current = { latitude, longitude };
         socket.emit("send-location", { latitude, longitude, name: displayName });
       },
       (error) => {
@@ -113,6 +143,46 @@ const Map = () => {
 
     return () => {
       navigator.geolocation.clearWatch(watchId);
+    };
+  }, [displayName]);
+
+  useEffect(() => {
+    if (!displayName || !navigator.geolocation) {
+      return undefined;
+    }
+
+    const emitCurrentLocation = ({ latitude, longitude }) => {
+      lastLocationRef.current = { latitude, longitude };
+      socket.emit("send-location", { latitude, longitude, name: displayName });
+    };
+
+    const handleRequestLocation = () => {
+      if (lastLocationRef.current) {
+        emitCurrentLocation(lastLocationRef.current);
+        return;
+      }
+
+      navigator.geolocation.getCurrentPosition(
+        (position) => emitCurrentLocation(position.coords),
+        (error) => {
+          console.error("Location refresh failed:", error.message);
+        },
+        {
+          enableHighAccuracy: true,
+          maximumAge: 10000,
+          timeout: 5000,
+        },
+      );
+    };
+
+    socket.on("request-location", handleRequestLocation);
+
+    if (socket.connected) {
+      handleRequestLocation();
+    }
+
+    return () => {
+      socket.off("request-location", handleRequestLocation);
     };
   }, [displayName]);
 

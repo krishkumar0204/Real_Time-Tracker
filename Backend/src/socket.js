@@ -8,28 +8,48 @@ const normalizeName = (name) => {
   return normalizedName || "Anonymous";
 };
 
+const activeUsers = new Map();
+
+const getActiveUsers = () => Array.from(activeUsers.values());
+
+const createLocationPayload = (socketId, data) => {
+  const latitude = Number(data?.latitude);
+  const longitude = Number(data?.longitude);
+
+  if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
+    return null;
+  }
+
+  return {
+    id: socketId,
+    name: normalizeName(data.name),
+    latitude,
+    longitude,
+    updatedAt: Date.now(),
+  };
+};
+
 const initializeSocket = (io) => {
   io.on("connection", (socket) => {
     console.log("user-connected", socket.id);
 
-    socket.on("send-location", (data) => {
-      const latitude = Number(data.latitude);
-      const longitude = Number(data.longitude);
+    socket.emit("active-users", getActiveUsers());
+    socket.broadcast.emit("request-location");
 
-      if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
+    socket.on("send-location", (data) => {
+      const location = createLocationPayload(socket.id, data);
+
+      if (!location) {
         return;
       }
 
-      io.emit("receive-location", {
-        id: socket.id,
-        name: normalizeName(data.name),
-        latitude,
-        longitude,
-      });
+      activeUsers.set(socket.id, location);
+      io.emit("receive-location", location);
     });
 
     socket.on("disconnect", () => {
       console.log("User-disconnected ", socket.id);
+      activeUsers.delete(socket.id);
       io.emit("user-disconnected", socket.id);
     });
   });
