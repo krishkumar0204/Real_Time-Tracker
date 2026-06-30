@@ -12,6 +12,13 @@ const io = new Server(httpServer, {
     origin: config.CORS_ORIGINS,
     methods: ["GET", "POST"],
   },
+  transports: ["websocket", "polling"],
+  pingInterval: 25000,
+  pingTimeout: 20000,
+  connectionStateRecovery: {
+    maxDisconnectionDuration: 120000,
+    skipMiddlewares: true,
+  },
 });
 
 // Initialize Socket.IO events

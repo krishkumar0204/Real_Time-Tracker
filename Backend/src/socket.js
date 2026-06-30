@@ -36,6 +36,10 @@ const initializeSocket = (io) => {
     socket.emit("active-users", getActiveUsers());
     socket.broadcast.emit("request-location");
 
+    socket.on("get-active-users", () => {
+      socket.emit("active-users", getActiveUsers());
+    });
+
     socket.on("send-location", (data) => {
       const location = createLocationPayload(socket.id, data);
 

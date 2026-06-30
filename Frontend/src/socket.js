@@ -33,7 +33,13 @@ if (import.meta.env.PROD && isLocalApiUrl) {
   );
 }
 
-const socket = io(apiUrl);
+const socket = io(apiUrl, {
+  transports: ["websocket", "polling"],
+  reconnection: true,
+  reconnectionAttempts: Infinity,
+  reconnectionDelay: 1000,
+  reconnectionDelayMax: 5000,
+});
 
 socket.on("connect_error", (error) => {
   console.error(`Socket connection failed for ${apiUrl}:`, error.message);

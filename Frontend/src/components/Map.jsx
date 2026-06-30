@@ -28,8 +28,13 @@ const RecenterMap = ({ position }) => {
   const map = useMap();
 
   useEffect(() => {
+    map.invalidateSize();
+
     if (position) {
-      map.setView(position, 16);
+      map.flyTo(position, 16, {
+        animate: true,
+        duration: 0.8,
+      });
     }
   }, [map, position]);
 
@@ -39,6 +44,17 @@ const RecenterMap = ({ position }) => {
 const getSavedName = () => {
   const savedName = window.localStorage.getItem("tracker-display-name");
   return savedName?.trim() || "";
+};
+
+const getPositionFromPayload = (payload) => {
+  const latitude = Number(payload?.latitude);
+  const longitude = Number(payload?.longitude);
+
+  if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
+    return null;
+  }
+
+  return [latitude, longitude];
 };
 
 const Map = () => {
@@ -51,6 +67,7 @@ const Map = () => {
   useEffect(() => {
     const handleConnect = () => {
       setMySocketId(socket.id);
+      socket.emit("get-active-users");
     };
 
     const handleActiveUsers = (users) => {
@@ -60,17 +77,12 @@ const Map = () => {
 
       setPositions(
         users.reduce((nextPositions, user) => {
-          const latitude = Number(user.latitude);
-          const longitude = Number(user.longitude);
+          const position = getPositionFromPayload(user);
 
-          if (
-            user.id &&
-            Number.isFinite(latitude) &&
-            Number.isFinite(longitude)
-          ) {
+          if (user.id && position) {
             nextPositions[user.id] = {
               name: user.name,
-              position: [latitude, longitude],
+              position,
             };
           }
 
@@ -80,11 +92,17 @@ const Map = () => {
     };
 
     const handleReceiveLocation = (data) => {
+      const position = getPositionFromPayload(data);
+
+      if (!data?.id || !position) {
+        return;
+      }
+
       setPositions((currentPositions) => ({
         ...currentPositions,
         [data.id]: {
           name: data.name,
-          position: [data.latitude, data.longitude],
+          position,
         },
       }));
     };
@@ -115,38 +133,6 @@ const Map = () => {
   }, []);
 
   useEffect(() => {
-    if (!displayName) {
-      return;
-    }
-
-    if (!navigator.geolocation) {
-      console.error("Geolocation is not supported by this browser.");
-      return;
-    }
-
-    const watchId = navigator.geolocation.watchPosition(
-      (position) => {
-        const { latitude, longitude } = position.coords;
-
-        lastLocationRef.current = { latitude, longitude };
-        socket.emit("send-location", { latitude, longitude, name: displayName });
-      },
-      (error) => {
-        console.error("Location tracking failed:", error.message);
-      },
-      {
-        enableHighAccuracy: true,
-        maximumAge: 0,
-        timeout: 5000,
-      },
-    );
-
-    return () => {
-      navigator.geolocation.clearWatch(watchId);
-    };
-  }, [displayName]);
-
-  useEffect(() => {
     if (!displayName || !navigator.geolocation) {
       return undefined;
     }
@@ -156,7 +142,7 @@ const Map = () => {
       socket.emit("send-location", { latitude, longitude, name: displayName });
     };
 
-    const handleRequestLocation = () => {
+    const fetchAndEmitCurrentLocation = () => {
       if (lastLocationRef.current) {
         emitCurrentLocation(lastLocationRef.current);
         return;
@@ -175,14 +161,36 @@ const Map = () => {
       );
     };
 
-    socket.on("request-location", handleRequestLocation);
+    const watchId = navigator.geolocation.watchPosition(
+      (position) => emitCurrentLocation(position.coords),
+      (error) => {
+        console.error("Location tracking failed:", error.message);
+      },
+      {
+        enableHighAccuracy: true,
+        maximumAge: 0,
+        timeout: 10000,
+      },
+    );
+
+    const handleConnect = () => {
+      socket.emit("get-active-users");
+      fetchAndEmitCurrentLocation();
+    };
+
+    socket.on("connect", handleConnect);
+    socket.on("request-location", fetchAndEmitCurrentLocation);
 
     if (socket.connected) {
-      handleRequestLocation();
+      handleConnect();
+    } else {
+      fetchAndEmitCurrentLocation();
     }
 
     return () => {
-      socket.off("request-location", handleRequestLocation);
+      navigator.geolocation.clearWatch(watchId);
+      socket.off("connect", handleConnect);
+      socket.off("request-location", fetchAndEmitCurrentLocation);
     };
   }, [displayName]);
 
