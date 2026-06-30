@@ -3,7 +3,6 @@ const initializeSocket = (io) => {
     console.log("user-connected", socket.id);
 
     socket.on("send-location", (data) => {
-      console.log(socket.id, data);
       io.emit("receive-location", {
         id: socket.id,
         ...data,

@@ -32,7 +32,6 @@ const RecenterMap = ({ position }) => {
 const Map = () => {
   const [positions, setPositions] = useState({});
   const [mySocketId, setMySocketId] = useState(null);
-  console.log("Positions", positions);
 
   useEffect(() => {
     const handleConnect = () => setMySocketId(socket.id);
